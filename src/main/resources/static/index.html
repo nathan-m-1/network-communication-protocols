@@ -1,100 +1,115 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Spring Boot WebSocket Chat Application</title>
+    <meta charset="UTF-8">
+    <title>Chat Familiar</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <style>
-        .chat-container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .message-area { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .message-area {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
+
 <body>
-<div class="chat-container">
-    <h1 class="title">WebSocket Chat</h1>
-    
-    <div id="username-page" class="box">
-        <div class="field">
-            <label class="label">Username</label>
-            <div class="control">
-                <input class="input" type="text" id="username" placeholder="Enter your username" />
+    <div class="chat-container">
+        <h1 class="title">Chat Familiar 😎</h1>
+
+        <div id="username-page" class="box">
+            <div class="field">
+                <label class="label">Nombre</label>
+                <div class="control">
+                    <input class="input" type="text" id="username" placeholder="Introduce tu Nombre" />
+                </div>
+            </div>
+            <button class="button is-primary" onclick="connect()">Conectar</button>
+        </div>
+
+        <div id="chat-page" class="box is-hidden">
+            <div class="message-area" id="messageArea"></div>
+            <div class="field has-addons">
+                <div class="control is-expanded">
+                    <input class="input" type="text" id="message" placeholder="Escribe un mensaje..." />
+                </div>
+                <div class="control">
+                    <button class="button is-info" onclick="sendMessage()">Enviar</button>
+                </div>
             </div>
         </div>
-        <button class="button is-primary" onclick="connect()">Connect</button>
     </div>
 
-    <div id="chat-page" class="box is-hidden">
-        <div class="message-area" id="messageArea"></div>
-        <div class="field has-addons">
-            <div class="control is-expanded">
-                <input class="input" type="text" id="message" placeholder="Type a message..." />
-            </div>
-            <div class="control">
-                <button class="button is-info" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-</div>
+    <script>
+        var stompClient = null;
+        var username = null;
 
-<script>
-    var stompClient = null;
-    var username = null;
+        function connect() {
+            username = document.querySelector('#username').value.trim();
+            if (username) {
+                document.querySelector('#username-page').classList.add('is-hidden');
+                document.querySelector('#chat-page').classList.remove('is-hidden');
 
-    function connect() {
-        username = document.querySelector('#username').value.trim();
-        if(username) {
-            document.querySelector('#username-page').classList.add('is-hidden');
-            document.querySelector('#chat-page').classList.remove('is-hidden');
+                var socket = new SockJS('/ws');
+                stompClient = Stomp.over(socket);
 
-            var socket = new SockJS('/ws');
-            stompClient = Stomp.over(socket);
-
-            stompClient.connect({}, onConnected, onError);
-        }
-    }
-
-    function onConnected() {
-        stompClient.subscribe('/topic/public', onMessageReceived);
-        stompClient.send("/app/chat.addUser", {}, JSON.stringify({sender: username, type: 'JOIN'}));
-    }
-
-    function onError(error) {
-        document.querySelector('#messageArea').innerHTML += '<p style="color:red">Could not connect to WebSocket server. Please refresh this page to try again!</p>';
-    }
-
-    function sendMessage(event) {
-        var messageContent = document.querySelector('#message').value.trim();
-        if(messageContent && stompClient) {
-            var chatMessage = {
-                sender: username,
-                content: messageContent,
-                type: 'CHAT'
-            };
-            stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
-            document.querySelector('#message').value = '';
-        }
-    }
-
-    function onMessageReceived(payload) {
-        var message = JSON.parse(payload.body);
-        var messageElement = document.createElement('div');
-
-        if(message.type === 'JOIN') {
-            messageElement.classList.add('notification', 'is-success', 'is-light');
-            messageElement.innerText = message.sender + ' joined!';
-        } else if (message.type === 'LEAVE') {
-            messageElement.classList.add('notification', 'is-warning', 'is-light');
-            messageElement.innerText = message.sender + ' left!';
-        } else {
-            messageElement.classList.add('notification');
-            messageElement.innerHTML = '<strong>' + message.sender + ': </strong> ' + message.content;
+                stompClient.connect({}, onConnected, onError);
+            }
         }
 
-        var messageArea = document.querySelector('#messageArea');
-        messageArea.appendChild(messageElement);
-        messageArea.scrollTop = messageArea.scrollHeight;
-    }
-</script>
+        function onConnected() {
+            stompClient.subscribe('/topic/public', onMessageReceived);
+            stompClient.send("/app/chat.addUser", {}, JSON.stringify({ sender: username, type: 'JOIN' }));
+        }
+
+        function onError(error) {
+            document.querySelector('#messageArea').innerHTML += '<p style="color:red">No se pudo conectar al chat. Por favor, recarga esta página para intentarlo de nuevo!</p>';
+        }
+
+        function sendMessage(event) {
+            var messageContent = document.querySelector('#message').value.trim();
+            if (messageContent && stompClient) {
+                var chatMessage = {
+                    sender: username,
+                    content: messageContent,
+                    type: 'CHAT'
+                };
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+                document.querySelector('#message').value = '';
+            }
+        }
+
+        function onMessageReceived(payload) {
+            var message = JSON.parse(payload.body);
+            var messageElement = document.createElement('div');
+
+            if (message.type === 'JOIN') {
+                messageElement.classList.add('notification', 'is-success', 'is-light');
+                messageElement.innerText = message.sender + ' se unió!';
+            } else if (message.type === 'LEAVE') {
+                messageElement.classList.add('notification', 'is-warning', 'is-light');
+                messageElement.innerText = message.sender + ' se fue!';
+            } else {
+                messageElement.classList.add('notification');
+                messageElement.innerHTML = '<strong>' + message.sender + ': </strong> ' + message.content;
+            }
+
+            var messageArea = document.querySelector('#messageArea');
+            messageArea.appendChild(messageElement);
+            messageArea.scrollTop = messageArea.scrollHeight;
+        }
+    </script>
 </body>
+
 </html>
