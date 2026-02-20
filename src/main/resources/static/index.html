@@ -7,6 +7,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
     <style>
         .chat-container {
             max-width: 800px;
@@ -20,6 +21,18 @@
             border: 1px solid #ddd;
             padding: 10px;
             margin-bottom: 10px;
+        }
+
+        #emoji-picker-container {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .field.has-addons {
+            position: relative;
         }
     </style>
 </head>
@@ -40,9 +53,18 @@
 
         <div id="chat-page" class="box is-hidden">
             <div class="message-area" id="messageArea"></div>
+
+            <div id="emoji-picker-container">
+                <emoji-picker></emoji-picker>
+            </div>
+
             <div class="field has-addons">
+                <div class="control">
+                    <button class="button" id="emoji-button" onclick="toggleEmojiPicker()">😀</button>
+                </div>
                 <div class="control is-expanded">
-                    <input class="input" type="text" id="message" placeholder="Escribe un mensaje..." />
+                    <input class="input" type="text" id="message" placeholder="Escribe un mensaje..."
+                        onkeypress="handleKeyPress(event)" />
                 </div>
                 <div class="control">
                     <button class="button is-info" onclick="sendMessage()">Enviar</button>
@@ -54,6 +76,34 @@
     <script>
         var stompClient = null;
         var username = null;
+
+        document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
+            const messageInput = document.querySelector('#message');
+            messageInput.value += event.detail.unicode;
+            messageInput.focus();
+        });
+
+        function toggleEmojiPicker() {
+            const container = document.querySelector('#emoji-picker-container');
+            container.style.display = (container.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function handleKeyPress(event) {
+            if (event.keyCode === 13) {
+                sendMessage();
+            }
+        }
+
+        // Close picker when clicking outside
+        document.addEventListener('mousedown', (event) => {
+            const container = document.querySelector('#emoji-picker-container');
+            const button = document.querySelector('#emoji-button');
+            if (container.style.display === 'block' &&
+                !container.contains(event.target) &&
+                !button.contains(event.target)) {
+                container.style.display = 'none';
+            }
+        });
 
         function connect() {
             username = document.querySelector('#username').value.trim();
